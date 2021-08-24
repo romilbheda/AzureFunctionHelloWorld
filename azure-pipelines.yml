@@ -1,0 +1,44 @@
+variables:
+  serviceConnectionToAzure: 'AzureJavaConnector'
+  appName: 'AzureFunctionHelloWorld24'
+  functionAppName: 'AzureFunctionHelloWorld24'
+  POM_XML_Directory: 'AzureFunctionHelloWorld'
+
+trigger:
+- main
+
+pool:
+  vmImage: ubuntu-latest
+
+steps:
+- task: Maven@3
+  inputs:
+    mavenPomFile: '$(POM_XML_Directory)/pom.xml'
+    mavenOptions: '-Xmx3072m'
+    javaHomeOption: 'JDKVersion'
+    jdkVersionOption: '1.11'
+    jdkArchitectureOption: 'x64'
+    publishJUnitResults: true
+    testResultsFiles: '**/surefire-reports/TEST-*.xml'
+    goals: 'package'
+
+- task: CopyFiles@2
+  displayName: Copy Files
+  inputs:
+    SourceFolder: $(system.defaultworkingdirectory)/$(POM_XML_Directory)/target/azure-functions/$(functionAppName)/
+    Contents: '**'
+    TargetFolder: $(build.artifactstagingdirectory)   
+
+- task: PublishBuildArtifacts@1
+  displayName: Publish Artifact
+  inputs:
+    PathtoPublish: $(build.artifactstagingdirectory)    
+
+- task: AzureFunctionApp@1
+  displayName: Azure Function App deploy
+  inputs:
+    azureSubscription: $(serviceConnectionToAzure)
+    appType: 'functionAppLinux'
+    appName: $(appName)
+    package: $(build.artifactstagingdirectory)
+    runtimeStack: 'JAVA|11'
